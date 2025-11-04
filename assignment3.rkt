@@ -125,7 +125,7 @@
 (define (make-seq exp) 0) ; stub
 
 ; make-letstar goes here
-(define (make-letstar defs exp) 0) ; stub
+(define (make-letstar defs exp) (if (null? defs) exp (let-form (cdar defs) (caar defs) (make-letstar (cdr defs) exp))))
 
 ; make-curried-proc goes here
 (define (make-curried-proc vars exp) 0) ; stub
