@@ -6,39 +6,39 @@
 (require parser-tools/lex
          parser-tools/yacc
          (prefix-in : parser-tools/lex-sre))
- 
+
 
 (define-tokens value-tokens (NUM ID))
 
 (define-empty-tokens op-tokens
-  (BEGIN 
-   END 
-   SEMI 
-   EQ1 
+  (BEGIN
+   END
+   SEMI
+   EQ1
    EQ2
-   IF 
+   IF
    THEN
-   ELSE 
-   OP 
+   ELSE
+   OP
    CP
-   COMMA 
-   LET 
-   IN 
+   COMMA
+   LET
+   IN
    BSLASH
    ARROW
-   + 
-   - 
-   * 
+   +
+   -
+   *
    /
    EOF))
 
 (define-lex-abbrevs
- (lower-letter (:/ "a" "z"))
- (upper-letter (:/ #\A #\Z))
- (letter (:or lower-letter upper-letter))
- (digit (:/ "0" "9"))
- (ident (:+ letter))
- (number (:+ digit)))
+  (lower-letter (:/ "a" "z"))
+  (upper-letter (:/ #\A #\Z))
+  (letter (:or lower-letter upper-letter))
+  (digit (:/ "0" "9"))
+  (ident (:+ letter))
+  (number (:+ digit)))
 
 
 ;get-token: inputPort -> token
@@ -201,7 +201,7 @@
         (sum (sum 2 3) 4))
 
 
-  
+
 
 ;; An environment (Env) is a Racket function from Identifier to Loc.
 ;; where a Loc is a NatNum
@@ -299,10 +299,12 @@
                   (lambda (v store2)
                     (k v (extend-store store2 (apply-env env (assign-var exp)) v)))
                   store))
-      (else (error 'meaning "Unknown expression"))))
+        (else (error 'meaning "Unknown expression"))))
 
 ; lexer/parser/meaning test
 
 (define example2 "2+3+4")
 
 (equal? (meaning (ast<-string example2) empty-env init-k empty-store) 9)
+
+(provide parse-lang sum diff quo neg let-form if-form proc funcall assign equality make-seq make-letstar make-curried-proc make-curried-funcall)
