@@ -207,7 +207,7 @@
 
 ;; denotation
 
-(define (boolify num) (num))
+(define (boolify num) num)
 
 ; meaning: Exp * Env * (Val * Store -> A) * Store -> A
 (define (meaning exp env k store)
@@ -275,6 +275,15 @@
      (meaning (assign-exp exp)
               env
               (lambda (v store2) (k v (extend-store store2 (apply-env env (assign-var exp)) v)))
+              store)]
+    [(equality? exp)
+     (meaning (equality-exp1 exp)
+              env
+              (lambda (v1 store2)
+                (meaning (equality-exp2 exp)
+                         env
+                         (lambda (v2 store3) (k (if (= v1 v2) v1 #f) store3))
+                         store2))
               store)]
     [else (display exp) (error 'meaning "Unknown expression")]))
 
