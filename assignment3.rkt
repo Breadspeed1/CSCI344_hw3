@@ -99,22 +99,26 @@
 (define (make-seq exp)
   (let ([edr (cdr exp)])
     (if (null? edr)
-        exp
+        (car exp)
         (let-form '*temp* (car exp) (make-seq edr)))))
 
 ; make-letstar goes here
 (define (make-letstar defs exp)
   (if (null? defs)
       exp
-      (let-form (caar defs) (cdar defs) (make-letstar (cdr defs) exp))))
+      (let-form (caar defs) (cadar defs) (make-letstar (cdr defs) exp))))
 
 ; make-curried-proc goes here
 (define (make-curried-proc vars exp)
-  0) ; stub
+  (if (null? vars)
+      exp
+      (proc (car vars) (make-curried-proc (cdr vars) exp))))
 
 ; make-curried-funcall goes here
 (define (make-curried-funcall exp exps)
-  0) ; stub
+  (if (null? exps)
+      exp
+      (make-curried-funcall (funcall exp (car exps)) (cdr exps))))
 
 ; parse-lang: (() -> token) -> SmallLangExp
 (define parse-lang
@@ -272,7 +276,7 @@
               env
               (lambda (v store2) (k v (extend-store store2 (apply-env env (assign-var exp)) v)))
               store)]
-    [else (error 'meaning "Unknown expression")]))
+    [else (display exp) (error 'meaning "Unknown expression")]))
 
 ; lexer/parser/meaning test
 
