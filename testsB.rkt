@@ -1,6 +1,10 @@
 #lang racket
 
+(require "assignment3.rkt")
+
 ;; Tests for part B
+
+(define example3 "-(2+3)*4/5")
 
 (equal? (ast<-string example3)
         (quo (prod (neg (sum 2 3)) 4) 5))

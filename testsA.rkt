@@ -1,5 +1,7 @@
 #lang racket
 
+(require "assignment3.rkt")
+
 ;; Tests for part A
 
 (define example3 "-(2+3)*4/5")
@@ -17,4 +19,4 @@
 
 (define example6 "let d = \\a,b,c\\->b*b-4*a*c in d(1, -3, 2)")
 
-(equal? (meaning (ast<-string example6) empty-env init-k empty-store) 1)  
+(equal? (meaning (ast<-string example6) empty-env init-k empty-store) 1)

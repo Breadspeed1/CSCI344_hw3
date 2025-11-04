@@ -1,10 +1,12 @@
 #lang racket
 
+(require "assignment3.rkt")
+
 ;; Extra Credit Tests
 
 (equal? (ast<-string-extra-credit  example3)
         (quo (prod (neg (sum 2 3)) 4) 5))
-        
+
 (equal? (meaning-extra-credit (ast<-string-extra-credit  example4) empty-env init-k) 220)
 
 (equal? (meaning-extra-credit (ast<-string-extra-credit  example5) empty-env init-k) 1)

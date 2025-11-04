@@ -307,4 +307,4 @@
 
 (equal? (meaning (ast<-string example2) empty-env init-k empty-store) 9)
 
-(provide parse-lang sum diff quo neg let-form if-form proc funcall assign equality make-seq make-letstar make-curried-proc make-curried-funcall)
+(provide empty-env init-k empty-store parse-lang sum diff quo prod neg let-form if-form proc funcall assign equality make-seq make-letstar make-curried-proc make-curried-funcall meaning ast<-string)
