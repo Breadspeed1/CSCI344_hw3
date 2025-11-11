@@ -203,95 +203,78 @@
 
 ;; continuations
 
-(define init-k (lambda (v store) v))
+(define init-k (lambda (v) v))
 
 ;; denotation
 
 (define (boolify num) num)
 
-; meaning: Exp * Env * (Val * Store -> A) * Store -> A
-(define (meaning exp env k store)
+; meaning: Exp * Env * (Val -> A) -> A
+(define (meaning exp env k)
   (cond
-    [(number? exp) (k exp store)]
-    [(ident? exp) (k (apply-store store (apply-env env exp)) store)]
-    [(neg? exp) (meaning (neg-exp exp) env (lambda (v store2) (k (* v -1) store2)) store)]
+    [(number? exp) (k exp)]
+    [(ident? exp) ((apply-env env exp) k)]
+    [(neg? exp) (meaning (neg-exp exp) env (lambda (v) (k (* v -1))))]
     [(diff? exp)
      (meaning (diff-exp1 exp)
               env
-              (lambda (v1 store2)
-                (meaning (diff-exp2 exp) env (lambda (v2 store3) (k (- v1 v2) store3)) store2))
-              store)]
+              (lambda (v1)
+                (meaning (diff-exp2 exp) env (lambda (v2) (k (- v1 v2)))))
+              )]
     [(quo? exp)
      (meaning (quo-exp1 exp)
               env
-              (lambda (v1 store2)
-                (meaning (quo-exp2 exp) env (lambda (v2 store3) (k (/ v1 v2) store3)) store2))
-              store)]
+              (lambda (v1)
+                (meaning (quo-exp2 exp) env (lambda (v2) (k (/ v1 v2)))))
+              )]
     [(prod? exp)
      (meaning (prod-exp1 exp)
               env
-              (lambda (v1 store2)
-                (meaning (prod-exp2 exp) env (lambda (v2 store3) (k (* v1 v2) store3)) store2))
-              store)]
+              (lambda (v1)
+                (meaning (prod-exp2 exp) env (lambda (v2) (k (* v1 v2)))))
+              )]
     [(sum? exp)
      (meaning (sum-exp1 exp)
               env
-              (lambda (v1 store2)
-                (meaning (sum-exp2 exp) env (lambda (v2 store3) (k (+ v1 v2) store3)) store2))
-              store)]
+              (lambda (v1)
+                (meaning (sum-exp2 exp) env (lambda (v2) (k (+ v1 v2)))))
+              )]
     [(let-form? exp)
-     (meaning (let-form-exp exp)
-              env
-              (lambda (v store2)
-                (let ([new-loc (length store2)])
-                  (meaning (let-form-body exp)
-                           (extend-env env (let-form-var exp) new-loc)
-                           k
-                           (extend-store store2 new-loc v))))
-              store)]
+     (meaning (let-form-body exp) 
+              (extend-env env (let-form-var exp) (lambda (k2) (meaning (let-form-exp exp) env k2)))
+              k)]
     [(if-form? exp)
      (meaning (if-form-exp1 exp)
               env
-              (lambda (v store2)
+              (lambda (v)
                 (if (boolify v)
-                    (meaning (if-form-exp2 exp) env k store2)
-                    (meaning (if-form-exp3 exp) env k store2)))
-              store)]
+                    (meaning (if-form-exp2 exp) env k)
+                    (meaning (if-form-exp3 exp) env k)))
+              )]
     [(proc? exp)
-     (k (lambda (v k2 store2)
-          (let ([new-loc (length store2)])
-            (meaning (proc-exp exp)
-                     (extend-env env (proc-var exp) new-loc)
-                     k2
-                     (extend-store store2 new-loc v))))
-        store)]
+     (k (lambda (v k2)
+          (meaning (proc-exp exp)
+                   (extend-env env (proc-var exp) v)
+                   k2)))]
     [(funcall? exp)
      (meaning (funcall-rator exp)
               env
-              (lambda (f store2)
-                (meaning (funcall-rand exp) env (lambda (v store3) (f v k store3)) store2))
-              store)]
-    [(assign? exp)
-     (meaning (assign-exp exp)
-              env
-              (lambda (v store2) (k v (extend-store store2 (apply-env env (assign-var exp)) v)))
-              store)]
+              (lambda (v1)
+                (v1 (lambda (k2) (meaning (funcall-rand exp) env k2)) k)))]
     [(equality? exp)
      (meaning (equality-exp1 exp)
               env
-              (lambda (v1 store2)
+              (lambda (v1)
                 (meaning (equality-exp2 exp)
                          env
-                         (lambda (v2 store3) (k (if (= v1 v2) v1 #f) store3))
-                         store2))
-              store)]
+                         (lambda (v2) (k (if (= v1 v2) v1 #f))))))]
     [else (display exp) (error 'meaning "Unknown expression")]))
 
 ; lexer/parser/meaning test
 
 (define example2 "2+3+4")
 
-(equal? (meaning (ast<-string example2) empty-env init-k empty-store) 9)
+(equal? (meaning (ast<-string example2) empty-env init-k) 9)
 
 (provide empty-env
          init-k
