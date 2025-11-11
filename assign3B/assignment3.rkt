@@ -6,18 +6,21 @@
          parser-tools/yacc
          (prefix-in : parser-tools/lex-sre))
 
-(define-tokens value-tokens (NUM ID))
+(define-tokens value-tokens (NUM ID LIT))
 
 (define-empty-tokens
   op-tokens
-  (BEGIN END SEMI EQ1 EQ2 IF THEN ELSE OP CP COMMA LET IN BSLASH ARROW + - * / EOF))
+  (BEGIN END SEMI EQ1 EQ2 IF THEN ELSE OP CP COMMA LET IN BSLASH ARROW + - * / EOF OB CB DCOLON))
 
 (define-lex-abbrevs (lower-letter (:/ "a" "z"))
   (upper-letter (:/ #\A #\Z))
   (letter (:or lower-letter upper-letter))
   (digit (:/ "0" "9"))
   (ident (:+ letter))
-  (number (:+ digit)))
+  (number (:+ digit))
+  (escape (:: "\\" (:or "\\" "\"" "n" "t" "r")))
+  (string-char (:or escape (:~ #\" #\\)))
+  (string-lit (:: "\"" (:* string-char) "\"")))
 
 ;get-token: inputPort -> token
 (define get-token
@@ -37,10 +40,14 @@
          ("," 'COMMA)
          ("=" 'EQ1)
          ("==" 'EQ2)
+         ("::" 'DCOLON)
+         ("[" 'OB)
+         ("]" 'CB)
          ("+" '+)
          ("-" '-)
          ("*" '*)
          ("/" '/)
+         (string-lit (token-LIT (read (open-input-string lexeme))))
          (number (token-NUM (string->number lexeme)))
          (ident (token-ID (string->symbol lexeme)))
          (whitespace (get-token input-port))))
@@ -95,6 +102,13 @@
 
 (struct equality (exp1 exp2) #:transparent)
 
+(struct cons-form (car cdr) #:transparent)
+
+(define (make-explicit-list lst)
+  (if (null? lst)
+      lst
+      (cons-form (car lst) (make-explicit-list (cdr lst)))))
+
 ; make-seq goes here
 (define (make-seq exp)
   (let ([edr (cdr exp)])
@@ -138,13 +152,18 @@
            (let-defs ((let-def) (list $1)) ((let-def COMMA let-defs) (cons $1 $3)))
            (rec-def ((ID OP formals CP EQ1 exp) (list $1 (make-curried-proc $3 $6))))
            (rec-defs ((rec-def) (list $1)) ((rec-def COMMA rec-defs) (cons $1 $3)))
-           (comp-exp ((math-exp EQ2 math-exp) (equality $1 $3)) ((math-exp) $1))
+           (comp-exp ((cons-exp EQ2 cons-exp) (equality $1 $3)) ((cons-exp) $1))
+           (cons-exp ((math-exp) $1) ((math-exp DCOLON cons-exp) (cons-form $1 $3)))
            (math-exp ((math-exp + term) (sum $1 $3)) ((math-exp - term) (diff $1 $3)) ((term) $1))
            (term ((term * factor) (prod $1 $3)) ((term / factor) (quo $1 $3)) ((factor) $1))
-           (factor ((simple) $1)
+           (factor ((listexpr) (make-explicit-list $1))
+                   ((simple) $1)
                    ((NUM) $1)
+                   ((LIT) $1)
                    ((- factor) (neg $2))
                    ((simple OP actuals CP) (make-curried-funcall $1 $3)))
+           (listexpr ((OB CB) '()) ((OB nonemptylist CB) $2))
+           (nonemptylist ((exp) (list $1)) ((exp COMMA nonemptylist) (cons $1 $3)))
            (simple ((ID) $1) ((OP exp CP) $2))
            (actuals (() null) ((actualsNE) (reverse $1)))
            (actualsNE ((exp) (list $1)) ((actualsNE COMMA exp) (cons $3 $1)))
@@ -184,6 +203,35 @@
         val
         (env var2))))
 
+(define prim-null 
+  (lambda (arg k) 
+    (arg (lambda (v) (k (null? v))))))
+
+(define prim-head 
+  (lambda (arg k) 
+    (arg (lambda (v)
+           (if (cons-form? v)
+               (meaning (cons-form-car v) init-env k)
+               (error 'head "expected cons-form"))))))
+
+(define prim-tail 
+  (lambda (arg k) 
+    (arg (lambda (v)
+           (if (cons-form? v)
+               (meaning (cons-form-cdr v) init-env k)
+               (error 'tail "expected cons-form"))))))
+
+(define init-env 
+  (extend-env 
+   (extend-env 
+    (extend-env empty-env 
+                'null 
+                (lambda (k) (k prim-null)))
+    'head 
+    (lambda (k) (k prim-head)))
+   'tail 
+   (lambda (k) (k prim-tail))))
+
 ;; A store (Store) is a list of Loc * Val
 ;; where a Loc is a NatNum
 
@@ -205,6 +253,31 @@
 
 (define init-k (lambda (v) v))
 
+(define (value->string v)
+  (cond
+    [(number? v) (number->string v)]
+    [(string? v) v]
+    [(boolean? v) (if v "True" "False")]
+    [(null? v) "[]"]
+    [(cons-form? v) 
+     (string-append "[" (cons-form->string v) "]")]
+    [else (format "~a" v)]))
+
+(define (cons-form->string cf)
+  (let ([car-val (cons-form-car cf)]
+        [cdr-val (cons-form-cdr cf)])
+    (meaning car-val empty-env
+             (lambda (v1)
+               (if (null? cdr-val)
+                   (value->string v1)
+                   (if (cons-form? cdr-val)
+                       (string-append (value->string v1) ", " (cons-form->string cdr-val))
+                       (string-append (value->string v1) " :: " 
+                                      (meaning cdr-val empty-env value->string))))))))
+
+; init-string-k: continuation that converts result to string
+(define init-string-k (lambda (v) (value->string v)))
+
 ;; denotation
 
 (define (boolify num) num)
@@ -213,6 +286,8 @@
 (define (meaning exp env k)
   (cond
     [(number? exp) (k exp)]
+    [(string? exp) (k exp)]
+    [(null? exp) (k exp)]
     [(ident? exp) ((apply-env env exp) k)]
     [(neg? exp) (meaning (neg-exp exp) env (lambda (v) (k (* v -1))))]
     [(diff? exp)
@@ -268,6 +343,8 @@
                 (meaning (equality-exp2 exp)
                          env
                          (lambda (v2) (k (if (= v1 v2) v1 #f))))))]
+    [(cons-form? exp)
+     (k (cons-form (cons-form-car exp) (cons-form-cdr exp)))]
     [else (display exp) (error 'meaning "Unknown expression")]))
 
 ; lexer/parser/meaning test
@@ -277,7 +354,9 @@
 (equal? (meaning (ast<-string example2) empty-env init-k) 9)
 
 (provide empty-env
+         init-env
          init-k
+         init-string-k
          empty-store
          parse-lang
          sum
@@ -291,9 +370,12 @@
          funcall
          assign
          equality
+         cons-form
+         make-explicit-list
          make-seq
          make-letstar
          make-curried-proc
          make-curried-funcall
          meaning
-         ast<-string)
+         ast<-string
+         value->string)
