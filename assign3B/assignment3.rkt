@@ -183,6 +183,8 @@
 (define (ast<-string str)
   (let ([i (open-input-string str)]) (parse-lang (lambda () (get-token i)))))
 
+(define (ast<-string-extra-credit str) (ast<-string str))
+
 (define example1 "2+3+4")
 
 (equal? (ast<-string example1) (sum (sum 2 3) 4))
@@ -190,7 +192,7 @@
 ;; An environment (Env) is a Racket function from Identifier to Loc.
 ;; where a Loc is a NatNum
 
-(define empty-env (lambda (var) (error 'empty-env "variable undefined")))
+(define empty-env (lambda (var) (error 'empty-env "variable undefined: ~s" var)))
 
 ; apply-env: Env * Identifier -> Loc
 (define (apply-env env var)
@@ -347,6 +349,8 @@
      (k (cons-form (cons-form-car exp) (cons-form-cdr exp)))]
     [else (display exp) (error 'meaning "Unknown expression")]))
 
+(define (meaning-extra-credit exp env k) (meaning exp env k))
+
 ; lexer/parser/meaning test
 
 (define example2 "2+3+4")
@@ -378,4 +382,6 @@
          make-curried-funcall
          meaning
          ast<-string
-         value->string)
+         value->string
+         ast<-string-extra-credit
+         meaning-extra-credit)
