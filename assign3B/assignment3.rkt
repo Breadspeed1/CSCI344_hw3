@@ -183,6 +183,8 @@
 (define (ast<-string str)
   (let ([i (open-input-string str)]) (parse-lang (lambda () (get-token i)))))
 
+
+;;; ONLY EC PART 1 WORKS
 (define (ast<-string-extra-credit str) (ast<-string str))
 
 (define example1 "2+3+4")
@@ -349,6 +351,7 @@
      (k (cons-form (cons-form-car exp) (cons-form-cdr exp)))]
     [else (display exp) (error 'meaning "Unknown expression")]))
 
+;;; ONLY EC PART 1 WORKS
 (define (meaning-extra-credit exp env k) (meaning exp env k))
 
 ; lexer/parser/meaning test
